@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gran Bingo de Nadal 🎄</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #1a472a;
+            background-image: url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232d663d' fill-opacity='0.4'%3E%3Cpath d='M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95l8.486 8.486-1.414 1.414-8.486-8.486 1.414-1.414z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        h1, h2, .christmas-font {
+            font-family: 'Mountains of Christmas', cursive;
+        }
+        .bingo-cell {
+            aspect-ratio: 1;
+            transition: all 0.2s;
+        }
+        .bingo-cell.marked {
+            background-color: #c0392b;
+            background-image: radial-gradient(circle at center, #e74c3c 0%, #c0392b 70%);
+            color: white;
+            border-color: #f1c40f;
+            transform: scale(0.95);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        .bingo-cell.marked .emoji {
+            opacity: 1;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+        }
+        /* Efecte "rum-rum" del bombo */
+        @keyframes rumble {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-2px, 2px) rotate(-1deg); }
+            50% { transform: translate(2px, -2px) rotate(1deg); }
+            75% { transform: translate(-2px, -2px) rotate(-1deg); }
+            100% { transform: translate(2px, 2px) rotate(1deg); }
+        }
+        .rumbling {
+            animation: rumble 0.1s infinite linear;
+        }
+        /* Efecte pop al sortir la bola */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        .pop-in {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col items-center justify-start p-2 md:p-4 overflow-x-hidden">
+
+    <!-- Capçalera -->
+    <header class="w-full max-w-3xl text-center mb-4 bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-lg border-b-4 border-red-600 z-10 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 via-green-500 to-red-500"></div>
+        <h1 class="text-4xl md:text-6xl font-bold text-red-700 leading-tight christmas-font drop-shadow-sm">Gran Bingo de Nadal 🎄</h1>
+    </header>
+
+    <!-- Pantalla d'Inici -->
+    <div id="start-screen" class="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl z-10 text-center border-4 border-green-700">
+        <h2 class="text-3xl font-bold mb-8 text-green-800 christmas-font">Tria el teu rol</h2>
+        
+        <button onclick="startPlayerMode()" class="group w-full mb-6 bg-green-600 hover:bg-green-700 text-white font-bold py-5 px-6 rounded-2xl transition transform hover:scale-105 shadow-lg flex items-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-white/10 group-hover:translate-x-full transition-transform duration-500 transform -skew-x-12 -translate-x-full"></div>
+            <span class="text-4xl mr-4">📝</span>
+            <div class="text-left">
+                <div class="text-2xl font-bold">Jugador</div>
+                <div class="text-sm text-green-100">Vull un cartró per jugar</div>
+            </div>
+        </button>
+
+        <button onclick="startHostMode()" class="group w-full bg-red-600 hover:bg-red-700 text-white font-bold py-5 px-6 rounded-2xl transition transform hover:scale-105 shadow-lg flex items-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-white/10 group-hover:translate-x-full transition-transform duration-500 transform -skew-x-12 -translate-x-full"></div>
+            <span class="text-4xl mr-4">🎙️</span>
+            <div class="text-left">
+                <div class="text-2xl font-bold">Mestre (Bombo)</div>
+                <div class="text-sm text-red-100">Dirigiré la partida</div>
+            </div>
+        </button>
+    </div>
+
+    <!-- Mode Jugador: El Cartró -->
+    <div id="player-screen" class="hidden w-full max-w-xl z-10 flex flex-col items-center">
+        <div class="bg-white p-3 md:p-6 rounded-2xl shadow-2xl w-full border-4 border-green-600 relative">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-3xl text-red-700 christmas-font font-bold">El teu Cartró</h2>
+                <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold border border-green-300">
+                    Marcats: <span id="marked-count">0</span>/24
+                </div>
+            </div>
+            
+            <div id="bingo-grid" class="grid grid-cols-5 gap-1 md:gap-2 mb-6 bg-red-50 p-2 rounded-xl border-2 border-red-200 shadow-inner">
+                <!-- Les cel·les es generaran amb JS -->
+            </div>
+
+            <div class="flex gap-3 justify-center">
+                <button id="btn-line" onclick="claimLine()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transform transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    LÍNIA! ➖
+                </button>
+                <button id="btn-bingo" onclick="claimBingo()" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-red-900 font-bold py-3 px-4 rounded-xl shadow-lg transform transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border-b-4 border-yellow-600">
+                    BINGO! 🏆
+                </button>
+            </div>
+            <button onclick="exitGame()" class="mt-4 text-gray-400 text-sm underline hover:text-gray-600 w-full text-center">Sortir al menú</button>
+        </div>
+    </div>
+
+    <!-- Mode Mestre: El Bombo -->
+    <div id="host-screen" class="hidden w-full max-w-2xl z-10 flex flex-col items-center">
+        <div class="bg-white/95 p-4 md:p-8 rounded-3xl shadow-2xl w-full text-center border-8 border-double border-red-600 relative">
+            <!-- Garlandes decoratives -->
+            <div class="absolute -top-3 left-10 text-3xl">🔔</div>
+            <div class="absolute -top-3 right-10 text-3xl">🔔</div>
+
+            <h2 class="text-4xl text-green-800 font-bold mb-6 christmas-font">El Bombo Màgic</h2>
+            
+            <!-- Zona de la bola actual -->
+            <div id="ball-display" class="mb-8 relative h-64 w-64 mx-auto bg-gradient-to-b from-gray-100 to-gray-200 rounded-full border-8 border-gray-300 shadow-inner flex items-center justify-center overflow-hidden">
+                
+                <!-- Text inicial -->
+                <span id="placeholder-text" class="text-gray-400 text-lg italic px-8">Preparat per girar!</span>
+                
+                <!-- Contingut animat -->
+                <div id="spinning-content" class="hidden flex-col items-center justify-center w-full h-full">
+                    <span id="spinner-emoji" class="text-9xl filter drop-shadow-lg transform transition-transform"></span>
+                </div>
+
+                <!-- Resultat Final -->
+                <div id="final-result" class="hidden flex-col items-center justify-center absolute inset-0 bg-white pop-in">
+                    <span id="final-emoji" class="text-9xl mb-2 drop-shadow-xl"></span>
+                    <span id="final-word" class="text-3xl font-bold text-red-600 christmas-font px-2 leading-tight"></span>
+                </div>
+            </div>
+
+            <!-- Controls Principals -->
+            <div class="flex flex-col gap-4 items-center mb-8">
+                <button onclick="drawBall()" id="draw-btn" class="w-full max-w-xs bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-4 px-8 rounded-2xl shadow-xl text-2xl transition transform active:scale-95 border-b-4 border-red-900 flex items-center justify-center gap-3">
+                    <span class="text-3xl">🎲</span> Girar Bombo
+                </button>
+
+                <!-- Controls Auto -->
+                <div class="flex items-center gap-3 bg-gray-100 p-2 rounded-lg">
+                    <span class="text-sm font-bold text-gray-600">Mode Auto:</span>
+                    <div class="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="auto-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300"/>
+                        <label for="auto-toggle" onclick="toggleAutoMode()" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                    </div>
+                    <span id="auto-status" class="text-xs text-gray-500 font-mono">OFF</span>
+                </div>
+            </div>
+
+            <!-- Historial -->
+            <div class="bg-green-50 rounded-xl p-4 border border-green-200">
+                <div class="flex justify-between items-end mb-2 border-b border-green-200 pb-1">
+                    <h3 class="text-sm font-bold text-green-800 uppercase tracking-wide">Últimes Boles (<span id="drawn-count">0</span>)</h3>
+                    <button onclick="resetGame()" class="text-xs text-red-500 hover:underline">Reiniciar Partida</button>
+                </div>
+                <div id="history-container" class="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto">
+                    <!-- Historial aquí -->
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                 <button onclick="exitGame()" class="text-sm text-gray-500 hover:text-red-500 underline">Tornar al menú principal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Missatge -->
+    <div id="modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl transform scale-100 transition-all border-4 border-yellow-400 relative">
+            <!-- Confeti decoratiu modal -->
+            <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-5xl bg-white rounded-full p-2 border-4 border-yellow-400" id="modal-icon"></div>
+            
+            <h3 id="modal-title" class="text-3xl font-bold mb-4 mt-6 text-gray-800 christmas-font"></h3>
+            <p id="modal-message" class="text-gray-600 mb-8 text-lg leading-relaxed"></p>
+            <button onclick="closeModal()" class="bg-green-600 hover:bg-green-700 text-white text-xl font-bold py-3 px-8 rounded-xl w-full shadow-lg transition transform active:scale-95">D'acord!</button>
+        </div>
+    </div>
+
+    <!-- Àudio ocult per efectes (opcional si falla el synth) -->
+
+    <script>
+        // --- Dades ---
+        const fullVocabulary = [
+            { word: "Nadal", emoji: "🎄" }, { word: "Mula", emoji: "🐴" }, { word: "Neu", emoji: "❄️" },
+            { word: "Torrons", emoji: "🍫" }, { word: "Naixement", emoji: "👶" }, { word: "Ninot de neu", emoji: "⛄" },
+            { word: "Mitjó", emoji: "🧦" }, { word: "Espelma", emoji: "🕯️" }, { word: "Àngel", emoji: "👼" },
+            { word: "Trineu", emoji: "🛷" }, { word: "Pol Nord", emoji: "🧊" }, { word: "Avet", emoji: "🌲" },
+            { word: "Llums", emoji: "💡" }, { word: "Posada", emoji: "🏠" }, { word: "Estel Màgic", emoji: "✨" },
+            { word: "Verge", emoji: "🤱" }, { word: "Mirra", emoji: "🏺" }, { word: "Església", emoji: "⛪" },
+            { word: "Llibre", emoji: "📖" }, { word: "Estrella", emoji: "🌟" }, { word: "Regals", emoji: "🎁" },
+            { word: "Jesús", emoji: "👶" }, { word: "Fred", emoji: "🥶" }, { word: "Nit", emoji: "🌙" },
+            { word: "Josep", emoji: "🧔" }, { word: "Ovella", emoji: "🐑" }, { word: "Rens", emoji: "🦌" },
+            { word: "Fugaç", emoji: "🌠" }, { word: "Reis Mags", emoji: "👑" }, { word: "Or", emoji: "💰" },
+            { word: "Estable", emoji: "🏚️" }, { word: "Campanes", emoji: "🔔" }, { word: "Caramel", emoji: "🍬" },
+            { word: "Bou", emoji: "🐂" }, { word: "Encens", emoji: "💨" }, { word: "Pessebre", emoji: "🖼️" },
+            { word: "Pare Noel", emoji: "🎅" }, { word: "Portal", emoji: "🚪" }, { word: "Maria", emoji: "👩" }
+        ];
+
+        // --- Estat ---
+        let deck = [];
+        let drawnIndex = 0;
+        let isSpinning = false;
+        let autoInterval = null;
+        let autoMode = false;
+        
+        // Estat del jugador
+        let playerCard = []; // Array de 25 objectes {word, emoji, marked, isFree}
+        let markedCount = 0;
+        let hasLine = false;
+        let hasBingo = false;
+
+        // --- Utilitats ---
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ca-ES'; // Català
+                utterance.rate = 0.9;
+                utterance.pitch = 1.1;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- Navegació ---
+        function hideAllScreens() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('player-screen').classList.add('hidden');
+            document.getElementById('host-screen').classList.add('hidden');
+        }
+
+        function exitGame() {
+            if(confirm("Segur que vols sortir?")) {
+                stopAutoMode();
+                hideAllScreens();
+                document.getElementById('start-screen').classList.remove('hidden');
+            }
+        }
+
+        function showModal(title, message, icon = 'ℹ️') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal-icon').innerHTML = icon;
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modal').classList.add('flex');
+            
+            // So de popup
+            speak(title);
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('modal').classList.remove('flex');
+        }
+
+        // --- JUGADOR ---
+
+        function startPlayerMode() {
+            hideAllScreens();
+            document.getElementById('player-screen').classList.remove('hidden');
+            generateCard();
+            hasLine = false;
+            hasBingo = false;
+            document.getElementById('btn-line').classList.remove('bg-gray-400', 'cursor-not-allowed');
+            document.getElementById('btn-line').classList.add('bg-blue-500');
+            document.getElementById('btn-line').disabled = false;
+        }
+
+        function generateCard() {
+            const grid = document.getElementById('bingo-grid');
+            grid.innerHTML = '';
+            markedCount = 1; // Comença amb 1 pel centre
+            document.getElementById('marked-count').innerText = markedCount;
+
+            const cardItems = shuffle([...fullVocabulary]).slice(0, 25);
+            // Centre gratuït
+            cardItems[12] = { word: "BON NADAL", emoji: "🎁", isFree: true };
+
+            playerCard = cardItems.map(item => ({ ...item, marked: item.isFree || false }));
+
+            playerCard.forEach((item, index) => {
+                const cell = document.createElement('div');
+                cell.id = `cell-${index}`;
+                cell.className = `bingo-cell bg-white border-2 border-green-200 rounded-lg flex flex-col items-center justify-center p-1 cursor-pointer hover:bg-green-50 select-none overflow-hidden relative shadow-sm ${item.isFree ? 'marked bg-red-100' : ''}`;
+                
+                if (item.isFree) {
+                    cell.innerHTML = `
+                        <span class="text-3xl filter drop-shadow-sm">${item.emoji}</span>
+                        <span class="text-[0.6rem] font-bold uppercase mt-1 text-yellow-200">BON NADAL</span>
+                    `;
+                } else {
+                    cell.onclick = () => toggleCell(index);
+                    cell.innerHTML = `
+                        <span class="emoji text-3xl filter drop-shadow-sm opacity-80">${item.emoji}</span>
+                        <span class="text-[0.6rem] md:text-xs font-bold text-green-900 text-center leading-none mt-1 w-full truncate px-1">${item.word}</span>
+                    `;
+                }
+                grid.appendChild(cell);
+            });
+        }
+
+        function toggleCell(index) {
+            const item = playerCard[index];
+            item.marked = !item.marked;
+            
+            const cell = document.getElementById(`cell-${index}`);
+            cell.classList.toggle('marked');
+
+            // Actualitzar comptador
+            markedCount = playerCard.filter(i => i.marked).length;
+            document.getElementById('marked-count').innerText = markedCount;
+
+            // Feedback tàctil
+            if (window.navigator && window.navigator.vibrate && item.marked) {
+                window.navigator.vibrate(50);
+            }
+        }
+
+        // --- Validació Jugador ---
+
+        function checkLineLogic() {
+            // Check files (rows)
+            for (let i = 0; i < 5; i++) {
+                if (playerCard.slice(i*5, (i*5)+5).every(c => c.marked)) return true;
+            }
+            return false;
+        }
+
+        function checkBingoLogic() {
+            return playerCard.every(c => c.marked);
+        }
+
+        function claimLine() {
+            if (hasLine) {
+                showModal("Ja tens línia", "Ja has cantat línia, ara a pel Bingo!", "😅");
+                return;
+            }
+            
+            if (checkLineLogic()) {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                showModal("LÍNIA CORRECTA!", "Molt bé! Has completat una fila. Continua jugant per al BINGO.", "➖");
+                hasLine = true;
+                const btn = document.getElementById('btn-line');
+                btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                btn.classList.remove('bg-blue-500');
+                btn.innerText = "Línia Feta ✅";
+            } else {
+                showModal("Falsa Alarma", "Encara no tens cap línia horitzontal completa. Revisa bé!", "🚫");
+            }
+        }
+
+        function claimBingo() {
+            if (checkBingoLogic()) {
+                 confetti({ particleCount: 300, spread: 100, startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 });
+                 const end = Date.now() + 2000;
+                 // Focs artificials continuats
+                 (function frame() {
+                    confetti({ particleCount: 2, angle: 60, spread: 55, origin: { x: 0 } });
+                    confetti({ particleCount: 2, angle: 120, spread: 55, origin: { x: 1 } });
+                    if (Date.now() < end) requestAnimationFrame(frame);
+                 }());
+
+                showModal("BINGO!!!!!!", "ENHORABONA! Has guanyat la partida de Nadal!", "🏆");
+                hasBingo = true;
+            } else {
+                showModal("Uix...", "Encara et falten caselles per marcar. No facis trampes!", "👮");
+            }
+        }
+
+
+        // --- MESTRE (HOST) ---
+
+        function startHostMode() {
+            hideAllScreens();
+            document.getElementById('host-screen').classList.remove('hidden');
+            resetGameLogic();
+        }
+
+        function resetGame() {
+            if(confirm("Reiniciar la partida?")) {
+                stopAutoMode();
+                resetGameLogic();
+            }
+        }
+
+        function resetGameLogic() {
+            deck = shuffle([...fullVocabulary]);
+            drawnIndex = 0;
+            document.getElementById('drawn-count').innerText = '0';
+            document.getElementById('history-container').innerHTML = '';
+            
+            // Reset Display
+            document.getElementById('ball-display').classList.remove('rumbling');
+            document.getElementById('placeholder-text').classList.remove('hidden');
+            document.getElementById('spinning-content').classList.add('hidden');
+            document.getElementById('spinning-content').classList.remove('flex');
+            document.getElementById('final-result').classList.add('hidden');
+            document.getElementById('final-result').classList.remove('flex');
+            
+            // Botó
+            const btn = document.getElementById('draw-btn');
+            btn.disabled = false;
+            btn.innerHTML = '<span class="text-3xl">🎲</span> Girar Bombo';
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        function toggleAutoMode() {
+            const checkbox = document.getElementById('auto-toggle');
+            const status = document.getElementById('auto-status');
+            
+            autoMode = checkbox.checked;
+            
+            if (autoMode) {
+                status.innerText = "ON (10s)";
+                status.classList.add('text-green-600');
+                if (!isSpinning) drawBall(); // Start immediately
+            } else {
+                stopAutoModeUI();
+            }
+        }
+
+        function stopAutoMode() {
+            const checkbox = document.getElementById('auto-toggle');
+            if (checkbox) checkbox.checked = false;
+            stopAutoModeUI();
+        }
+
+        function stopAutoModeUI() {
+            clearTimeout(autoInterval);
+            const status = document.getElementById('auto-status');
+            if(status) {
+                status.innerText = "OFF";
+                status.classList.remove('text-green-600');
+            }
+            autoMode = false;
+        }
+
+        function drawBall() {
+            if (isSpinning || drawnIndex >= deck.length) return;
+
+            isSpinning = true;
+            const btn = document.getElementById('draw-btn');
+            btn.disabled = true;
+            btn.classList.add('opacity-75');
+            
+            // UI Prep
+            document.getElementById('placeholder-text').classList.add('hidden');
+            document.getElementById('final-result').classList.add('hidden');
+            document.getElementById('final-result').classList.remove('flex');
+            
+            const spinContainer = document.getElementById('spinning-content');
+            spinContainer.classList.remove('hidden');
+            spinContainer.classList.add('flex');
+            
+            const ballDisplay = document.getElementById('ball-display');
+            ballDisplay.classList.add('rumbling'); // Shake effect
+
+            // Lògica de gir (Shuffle visual)
+            let spinCount = 0;
+            const spinnerEmoji = document.getElementById('spinner-emoji');
+            
+            const spinInterval = setInterval(() => {
+                const randomItem = fullVocabulary[Math.floor(Math.random() * fullVocabulary.length)];
+                spinnerEmoji.innerText = randomItem.emoji;
+                spinCount++;
+            }, 100);
+
+            // Parar el gir després de 4 segons (abans 2000)
+            setTimeout(() => {
+                clearInterval(spinInterval);
+                ballDisplay.classList.remove('rumbling');
+                
+                // Mostrar resultat real
+                const winner = deck[drawnIndex];
+                
+                spinContainer.classList.add('hidden');
+                spinContainer.classList.remove('flex');
+                
+                const finalRes = document.getElementById('final-result');
+                finalRes.classList.remove('hidden');
+                finalRes.classList.add('flex');
+                
+                document.getElementById('final-emoji').innerText = winner.emoji;
+                document.getElementById('final-word').innerText = winner.word;
+
+                // Veu
+                speak(winner.word);
+
+                // Historial
+                addToHistory(winner);
+                drawnIndex++;
+                document.getElementById('drawn-count').innerText = drawnIndex;
+
+                // Reset botó
+                isSpinning = false;
+                btn.disabled = false;
+                btn.classList.remove('opacity-75');
+
+                if (drawnIndex >= deck.length) {
+                    btn.innerText = "Fi del Joc!";
+                    btn.disabled = true;
+                    stopAutoMode();
+                } else if (autoMode) {
+                    // Esperar 6 segons + 4 de spin = 10s cicle
+                    autoInterval = setTimeout(drawBall, 6000); 
+                }
+
+            }, 4000);
+        }
+
+        function addToHistory(item) {
+            const container = document.getElementById('history-container');
+            const chip = document.createElement('div');
+            chip.className = "bg-white border-2 border-green-300 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm animate-fade-in-up transform transition hover:scale-110";
+            chip.innerHTML = `<span class="text-2xl">${item.emoji}</span> <span class="text-sm font-bold text-gray-800">${item.word}</span>`;
+            
+            // Inserir al principi
+            container.insertBefore(chip, container.firstChild);
+        }
+
+    </script>
+</body>
+</html>
